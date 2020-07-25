@@ -1,0 +1,440 @@
+
+### 0.利用seurat讀取資料並區分好組別 ###
+# https://satijalab.org/seurat/v3.1/pbmc3k_tutorial.html
+
+rm(list=ls(all=TRUE))
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(cowplot)   #有多的package
+
+setwd("C:/Users/TPOW31714/OneDrive/!!! 2020.04.27 Discuss with Dr.Jiang/2020.04.08 GSE137869 Aging/GSE137869/box")
+t0<- Sys.time()
+da0<- read.table("BM_M_comb1.txt",sep="\t",header=T,fill=T, quote = "", check.names=F )
+tn<- Sys.time()
+difftime(tn,t0, tz=" ",unit='mins')
+dim(da0)
+da0[1:5,1:7]
+
+#Time difference of 2.875562 mins
+
+data1 <- CollapseSpeciesExpressionMatrix(da0)
+data2 <- CreateSeuratObject(counts = data1 )
+data2
+#An object of class Seurat 
+#32884 features across 11991 samples within 1 assay 
+#Active assay: RNA (32884 features)
+
+#### mark condition cluster  ##################################
+data2$sample<- rep(c("Y","O","CR"), c(3456,4502,4033))
+
+#根據合併時的操作, 先是Y 再來是O 再來是CR, 所以可以知道data中先有O的3456 cells,
+#再來是O 的4502 cells, 再來是CR的 4033 cells
+#在合併檔案時的, 即上面程式(GSE137869 Aging&CR step-2)中的dim(BM1),dim(BM2),dim(BM3), 可知各條件的cell數
+
+dim(data2)
+#32884 genes, 11991 cells
+# (Y,Old,CR)==(3456,4502,4033)
+
+table(data2$sample)
+#CR    O    Y 
+#4033 4502 3456
+
+str(data2)
+#Formal class 'Seurat' [package "Seurat"] with 12 slots
+#..@ assays      :List of 1
+#.. ..$ RNA:Formal class 'Assay' [package "Seurat"] with 8 slots
+#.. .. .. ..@ counts       :Formal class 'dgCMatrix' [package "Matrix"] with 6 slots
+#.. .. .. .. .. ..@ i       : int [1:17032607] 51 52 83 200 240 261 311 409 411 416 ...
+#.. .. .. .. .. ..@ p       : int [1:11992] 0 952 1837 4403 6116 7225 7651 8792 11743 12689 ...
+#.. .. .. .. .. ..@ Dim     : int [1:2] 32884 11991
+#.. .. .. .. .. ..@ Dimnames:List of 2
+#.. .. .. .. .. .. ..$ : chr [1:32884] "AABR07000046.1" "AABR07000089.1" "Vom2r6" "Vom2r5" ...
+#.. .. .. .. .. .. ..$ : chr [1:11991] "AAACCTGAGGACATTA_Marrow_M_Y" "AAACCTGCATGAACCT_Marrow_M_Y" "AAACCTGGTCATACTG_Marrow_M_Y" "AAACCTGGTCCAGTGC_Marrow_M_Y" ...
+#.. .. .. .. .. ..@ x       : num [1:17032607] 1 2 1 1 1 1 2 1 1 1 ...
+#.. .. .. .. .. ..@ factors : list()
+#.. .. .. ..@ data         :Formal class 'dgCMatrix' [package "Matrix"] with 6 slots
+#.. .. .. .. .. ..@ i       : int [1:17032607] 51 52 83 200 240 261 311 409 411 416 ...
+#.. .. .. .. .. ..@ p       : int [1:11992] 0 952 1837 4403 6116 7225 7651 8792 11743 12689 ...
+#.. .. .. .. .. ..@ Dim     : int [1:2] 32884 11991
+#.. .. .. .. .. ..@ Dimnames:List of 2
+#.. .. .. .. .. .. ..$ : chr [1:32884] "AABR07000046.1" "AABR07000089.1" "Vom2r6" "Vom2r5" ...
+#.. .. .. .. .. .. ..$ : chr [1:11991] "AAACCTGAGGACATTA_Marrow_M_Y" "AAACCTGCATGAACCT_Marrow_M_Y" "AAACCTGGTCATACTG_Marrow_M_Y" "AAACCTGGTCCAGTGC_Marrow_M_Y" ...
+#.. .. .. .. .. ..@ x       : num [1:17032607] 1 2 1 1 1 1 2 1 1 1 ...
+#.. .. .. .. .. ..@ factors : list()
+#.. .. .. ..@ scale.data   : num[0 , 0 ] 
+#.. .. .. ..@ key          : chr "rna_"
+#.. .. .. ..@ assay.orig   : NULL
+#.. .. .. ..@ var.features : logi(0) 
+#.. .. .. ..@ meta.features:'data.frame':	32884 obs. of  0 variables
+#.. .. .. ..@ misc         : NULL
+#..@ meta.data   :'data.frame':	11991 obs. of  4 variables:
+#  .. ..$ orig.ident  : Factor w/ 1 level "SeuratProject": 1 1 1 1 1 1 1 1 1 1 ...
+#.. ..$ nCount_RNA  : num [1:11991] 6859 4989 13950 6749 3983 ...
+#.. ..$ nFeature_RNA: int [1:11991] 952 885 2566 1713 1109 426 1141 2951 946 2062 ...
+#.. ..$ sample      : chr [1:11991] "Y" "Y" "Y" "Y" ...
+#..@ active.assay: chr "RNA"
+#..@ active.ident: Factor w/ 1 level "SeuratProject": 1 1 1 1 1 1 1 1 1 1 ...
+#.. ..- attr(*, "names")= chr [1:11991] "AAACCTGAGGACATTA_Marrow_M_Y" "AAACCTGCATGAACCT_Marrow_M_Y" "AAACCTGGTCATACTG_Marrow_M_Y" "AAACCTGGTCCAGTGC_Marrow_M_Y" ...
+#..@ graphs      : list()
+#..@ neighbors   : list()
+#..@ reductions  : list()
+#..@ project.name: chr "SeuratProject"
+#..@ misc        : list()
+#..@ version     :Classes 'package_version', 'numeric_version'  hidden list of 1
+#.. ..$ : int [1:3] 3 1 5
+#..@ commands    : list()
+#..@ tools       : list()
+
+
+
+### 1.先跑一個不分condition的seurat ###
+
+# 1.1 QC and selecting cells for further analysis
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+data2[["percent.mt"]] <- PercentageFeatureSet(data2, pattern = "^MT-")
+
+# 1.2 Visualize QC metrics as a violin plot
+VlnPlot(data2, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# 1.3 FeatureScatter is typically used to visualize feature-feature relationships, but can be used
+# for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
+plot1 <- FeatureScatter(data2, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(data2, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+
+# 1.4 Set QC condition
+data3 <- subset(data2, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+# 標準設定是nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5
+
+# 1.5 standard log-normalization
+data3 <- NormalizeData(data3)
+data3 <- NormalizeData(data3, normalization.method = "LogNormalize", scale.factor = 10000)
+# 兩個公式一樣
+# Normalized values are stored in data3[["RNA"]]@data.
+str(data3)
+data3[["RNA"]]@data[c(502,2590:2592),1]
+data3$RNA@counts[c(502,2590:2592),1]
+sum(data3$RNA@counts[,1])
+zz<- data3$RNA@counts 
+log((1/6859)*10000)
+log1p ((1/6859)*10000)
+#log1p(x) computes log(1+x) accurately also for |x| << 1.
+
+# 1.6 Identification of highly variable features (feature selection)
+data3 <- FindVariableFeatures(data3, nfeatures = 3284)
+# 這邊有32884genes, 11991 cells, 取1/10當成nfeatures
+# default nfeatures = 2000
+
+# 1.7 Identify the 20 most highly variable genes
+top20 <- head(VariableFeatures(data3), 20)
+
+# 1.7.1 plot variable features with and without labels
+plot1 <- VariableFeaturePlot(data3)
+plot2 <- LabelPoints(plot = plot1, points = top20, repel = TRUE)
+plot1 + plot2
+# CombinePlots(plots = list(plot1, plot2))
+
+# 1.8 Scaling the data
+#Shifts the expression of each gene, so that the mean expression across cells is 0
+#Scales the expression of each gene, so that the variance across cells is 1
+#This step gives equal weight in downstream analyses, so that highly-expressed genes do not dominate
+#The results of this are stored in data3[["RNA"]]@scale.data
+all.genes <- rownames(data3)
+data3 <- ScaleData(data3, features = all.genes)
+data3[["RNA"]]@data[1:3,1:3]
+data3[["RNA"]]@scale.data[1:3,1:3]
+
+# 1.9 Perform linear dimensional reduction
+data3<- RunPCA(data3, features = VariableFeatures(object = data3))
+
+# 1.9.1 Examine and visualize PCA results a few different ways
+print(data3[["pca"]], dims = 1:8, nfeatures = 10)
+#1.9.2
+VizDimLoadings(data3, dims = 1:2, reduction = "pca")
+#1.9.3
+DimPlot(data3, reduction = "pca")
+#1.9.4
+#Setting cells to a number plots the ‘extreme’ cells on both ends of the 
+#spectrum, which dramatically speeds plotting for large datasets. 
+#Though clearly a supervised analysis, we find this to be a valuable tool 
+#for exploring correlated feature sets.
+DimHeatmap(data3, dims = 1:15, cells = 500, balanced = TRUE)
+
+# 1.10 Determine the ‘dimensionality’ of the dataset
+data3 <- JackStraw(data3, num.replicate = 100)
+data3 <- ScoreJackStraw(data3, dims = 1:50)
+JackStrawPlot(data3, dims = 1:20)
+ElbowPlot(data3)
+
+# 1.11 Cluster the cells
+data3 <- FindNeighbors(data3, dims = 1:50)
+data3 <- FindClusters(data3, resolution = 0.4)
+#resolution=0.4, Number of communities:17
+#resolution=0.5, Number of communities:18
+#resolution=1, Number of communities:26
+#resolution=1.2, Number of communities:27
+# resolution = 0.4-1.2
+
+head(Idents(data3), 5)
+table(Idents(data3))
+
+# 1.12 Run non-linear dimensional reduction (UMAP/tSNE)
+data3 <- RunUMAP(data3, dims = 1:50)
+DimPlot(data3, reduction = "umap")
+UMAPPlot(data3)
+
+
+data3 <- RunTSNE(data3, dims = 1:50)
+DimPlot(data3, reduction = "tsne")
+TSNEPlot(data3)
+
+setwd("C:/Users/TPOW31714/OneDrive/!!! 2020.04.27 Discuss with Dr.Jiang/2020.04.08 GSE137869 Aging/1. File")
+saveRDS(data3, file = "GSE137869_BM_Y&O&CR_PC1-50_RS0.4_20200716.rds")
+
+# 1.13 Finding differentially expressed features (cluster biomarkers)
+rm(list=ls(all=TRUE))
+library(dplyr)
+library(Seurat)
+library(patchwork)
+setwd("C:/Users/TPOW31714/OneDrive/!!! 2020.04.27 Discuss with Dr.Jiang/2020.04.08 GSE137869 Aging/1. File")
+data3<- readRDS("GSE137869_BM_Y&O&CR_PC1-50_RS0.4_20200716.rds", refhook = NULL)
+UMAPPlot(data3)
+# 1.13.1 find all markers of cluster 1
+cluster1.markers <- FindMarkers(data3, ident.1 = 1, min.pct = 0.25)
+head(cluster1.markers, n = 5)
+# 1.13.2 find all markers distinguishing cluster 5 from clusters 0 and 3
+cluster5.markers <- FindMarkers(data3, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
+head(cluster5.markers, n = 5)
+# 1.13.3 find markers for every cluster compared to all remaining cells, report only the positive ones
+BM.markers <- FindAllMarkers(data3, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+write.table(BM.markers,"GSE137869_BM_Y&O&CR_clusters for markers_rs0.4_20200716.txt", sep="\t",row.name=F, col.name=T, quote=FALSE)
+
+BM.marker_1<- BM.markers %>% group_by(cluster) %>% top_n(n = 15, wt = avg_logFC)
+write.table(BM.marker_1,"GSE137869_BM_Y&O&CR_clusters for markers_top15_rs0.4_20200716.txt", sep="\t",row.name=F, col.name=T, quote=FALSE)
+
+#不同DE方式 https://satijalab.org/seurat/v3.0/de_vignette.html
+#cluster0.markers <- FindMarkers(data2, ident.1 = 0, logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+
+# 1.14 visualizing marker expression
+# 1.14.1 VlnPlot
+VlnPlot(data3, features = c("Nt5e", "Thy1"))
+# 1.14.2 FeaturePlot
+FeaturePlot(data3, features = c("Ms4a1","Fos"))
+FeaturePlot(data3, features = c("Nt5e","Thy1","Eng","Itgav","Ly6a","Nes","Pdgfra"),reduction="umap")
+FeaturePlot(data3, features = c("Cebpb","Pparg","Klf5","Ppargc1a","Prdm16","Prkaa1","Runx2","Sp7","Alpl"),reduction="umap")
+FeaturePlot(data3, features = c("Bglap","Spp1","Fabp4","Igfbp4","Sox9","Acan","Col2A1"),reduction="umap")
+FeaturePlot(data3, features = c("Jag1","Tnfaip6","Ccl2","Hmox1","Sox9","Acan","Col2a1"),reduction="umap")
+FeaturePlot(data3, features = c("Tgfb1","Hgf","Fgf7","Igf1","Sox9","Acan","Col2a1"),reduction="umap")
+FeaturePlot(data3, features = c("Lgals1","Lgals3","Lgals9","Entpd1","Sox9","Acan","Col2a1"),reduction="umap")
+FeaturePlot(data3, features = c("Il1a","Il1b","Il1rn","Il6","Sox9","Acan","Col2a1"),reduction="umap")
+FeaturePlot(data3, features = c("Ptgs1","Ptgs2","Ptges3","Il6","Sox9","Acan","Col2a1"),reduction="umap")
+FeaturePlot(data3, features = c("Icam1","Vcam1","Ido1","Arg1","Sox9","Acan","Col2a1"),reduction="umap")
+FeaturePlot(data3, features = c("Faslg","H2-M3","H2-T23","Arg1","Sox9","Acan","Col2a1"),reduction="umap")
+#default umap, then tsne, then pca
+
+# 1.14.3.1 DoHeatmap
+top20 <- BM.markers %>% group_by(cluster) %>% top_n(n = 20, wt = avg_logFC)
+DoHeatmap(data3,features = top20$gene) + NoLegend()
+
+
+# 1.14.3.2 HEAT MAP只畫特定群的方式 (如何只選一個group???)
+#all cell names
+all.cells<- colnames(data3)
+#check number of cell: 2487 cell names
+length(all.cells)
+#擷取出屬第0群的cell names
+want_cell<- all.cells[Idents(data2)==0]
+#擷取出屬第0,1,2群的cell names
+want_cell<- all.cells[Idents(data2) %in% c(0,1,2)]
+#label=FALSE: 預設是TRUE, 會在圖上標群別0,1,2..., 現在只畫第0群的話, 還是會標0,1,2..., 所以乾脆不要標了
+DoHeatmap(data2, features = c("Car3","Fos"), cells=want_cell, label=FALSE) + NoLegend()
+DoHeatmap(data2, features = top20$gene, cells=want_cell, label=FALSE) + NoLegend()
+
+# 1.15 Assigning cell type identity to clusters
+new.cluster.ids <- c("0", "1", "2", "3", "4", "5", 
+                     "6", "7", "8", "9", "10", 
+                    "11", "12", "13", "14", "15", "16" )
+names(new.cluster.ids) <- levels(data3)
+data3 <- RenameIdents(data3, new.cluster.ids)
+DimPlot(data3, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+
+
+
+
+
+
+
+
+### 2.跑分condition的seurat ###
+# https://satijalab.org/seurat/v3.1/immune_alignment.html
+
+# 2.1 分組別
+data2.list <- SplitObject(data2, split.by = "sample")
+
+# 2.2 Normalization and FindVariableFeatures
+data2.list <- lapply(X = data2.list, FUN = function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 3284)
+})
+# 32840genes, 所以選 nfeatures = 3284
+
+# 2.3 Perform integration
+data2.anchors <- FindIntegrationAnchors(object.list = data2.list, dims = 1:50)
+data2.combined <- IntegrateData(anchorset = data2.anchors, dims = 1:50)
+# 2.4 Perform an integrated analysis
+DefaultAssay(data2.combined) <- "integrated"
+# 2.4.1 Run the standard workflow for visualization and clustering
+data2.combined <- ScaleData(data2.combined, verbose = FALSE)
+data2.combined <- RunPCA(data2.combined, npcs = 30, verbose = FALSE)
+# 2.4.2 t-SNE and Clustering
+data2.combined <- RunUMAP(data2.combined, reduction = "pca", dims = 1:30)
+data2.combined <- FindNeighbors(data2.combined, reduction = "pca", dims = 1:30)
+data2.combined <- FindClusters(data2.combined, resolution = 0.3)
+# PCdims 1:30, resolution = 0.4, Number of communities: 16
+# PCdims 1:30, resolution = 0.3, Number of communities: 15
+# 2.4.3 saveRDS
+saveRDS(data2.combined, file = "GSE137869_BM_Y&O&CR_split_PC1-30_RS0.3_20200716.rds")
+
+# 2.4.4 loadRDS
+rm(list=ls(all=TRUE))
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(cowplot)
+setwd("C:/Users/TPOW31714/OneDrive/!!! 2020.04.27 Discuss with Dr.Jiang/2020.04.08 GSE137869 Aging/1. File")
+data2.combined<- readRDS("GSE137869_BM_Y&O&CR_split_PC1-30_RS0.3_20200716.rds", refhook = NULL)
+UMAPPlot(data2.combined)
+
+# 2.4.5 Visualization
+p1 <- DimPlot(data2.combined, reduction = "umap", group.by = "sample")
+p2 <- DimPlot(data2.combined, reduction = "umap", label = TRUE)
+plot_grid(p1, p2)
+
+# 2.4.6 use the split.by argument to show each condition colored by cluster.
+DimPlot(data2.combined, reduction = "umap", split.by = "sample", label = TRUE)
+
+# 2.5.1 把不同組別的cluster gene叫出來
+sub_8<- subset(x = data2.combined, idents =8)
+
+str(sub_8)
+dim(sub_8)
+length(sub_8)
+summary(sub_8)
+table(sub_8)
+# sub<- subset(x = data2.combined, idents =1)
+# sub<- subset(x = data2.combined, idents =c(0,1))
+
+# 2.5.2 Method1 for找出不同組別的cluster genes
+zz0<- sub_8[["RNA"]]@data #normalizes data
+dim(zz0) #32884genes * 436cells
+table(zz0[1,])
+ss0<- sub_8[["RNA"]]@counts  #raw count
+# ss0<- sub_8$RNA@counts  #raw count
+dim(ss0) #32884genes * 436cells
+
+write.table(zz0,"BM_Y&O&CR_split cluster8 normalized counts for GSEA_rs0.3_20200719.txt", sep="\t",row.name=T, col.name=T, quote=FALSE)
+
+# write.table(zz0,"BM_Y&O&CR_split cluster8 normalized counts for GSEA_rs0.3_20200716.txt", sep="\t",row.name=F, col.name=T, quote=FALSE)
+
+# 2.5.2.1 Method1 extend: USE CELL ID to select specific treatment conditions
+sub_8<- subset(x = data2.combined, idents =8)
+dim(sub_8)
+# 2000 436
+table(sub_8$sample)  #condition composition CR  O   Y 
+#250 56 130
+cell_id<- colnames(sub_8) #ALL cell ID
+xx<- sub_8$sample=="CR"
+want<- cell_id[xx]     #Selected CR Only ID
+head(want)
+length(want)
+#[1] 250
+sub_8_CR<- subset(x = data2.combined, cells =want)
+sub_8_CR
+zz3<- sub_8_CR[["RNA"]]@data
+dim(zz3)
+write.table(zz3,"BM_CR cluster8 normalized counts for GSEA_rs0.3_20200719.txt", sep="\t",row.name=T, col.name=T, quote=FALSE)
+
+# 2.5.3 Method2 for selected cluster genes from diverse treatment conditions
+cluster1.markers<- FindMarkers(sub, ident.1 =c("Y"),ident.2 =c("O"), group.by=sub$sample, min.pct = 0)
+dim(cluster1.markers)
+# Q:How to select cluster cell from Y,Old,CR conditions? Only focus on one cluster?
+
+
+
+# 2.6 Identify conserved cell type markers
+DefaultAssay(data2.combined) <- "RNA"
+Conserverd.markers<- FindConservedMarkers(data2.combined, ident.1 = 8, grouping.var = "sample", verbose = FALSE)
+head(Conserverd.markers)
+
+# 2.6.1 find markers for every cluster compared to all remaining cells, report only the positive ones
+BM.markers <- FindAllMarkers(data2.combined, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+write.table(BM.markers,"GSE137869_PC1-20_cluster for markers_rs0.3_2020716.txt", sep="\t",row.name=T, col.name=T, quote=FALSE)
+
+BM.marker_1<- BM.markers %>% group_by(cluster) %>% top_n(n = 15, wt = avg_logFC)
+write.table(BM.marker_1,"GSE137869_cluster for markers_top15_rs0.4_20200427.txt", sep="\t",row.name=T, col.name=T, quote=FALSE)
+
+
+# 2.7 Explore these marker genes for each cluster and use them to annotate our clusters as specific cell types.
+FeaturePlot(data2.combined, features = c("Ccl5", "Ccl4", "Cd8a"), min.cutoff = "q9", split.by = "sample")
+FeaturePlot(data2.combined, features = c("Trbc2", "Tcf7", "Gzmm"), min.cutoff = "q9", split.by = "sample")
+FeaturePlot(data2.combined, features = c("Aicda", "Ptprc", "Spn"), min.cutoff = "q9", split.by = "sample")
+FeaturePlot(data2.combined, features = c("Pax5", "Ptprc", "Spn"), min.cutoff = "q9", split.by = "sample")
+# min.cuff = "q9"
+
+# 2.8 Rename groups (還未完成)
+data2.combined <- RenameIdents(data2.combined, `0` = "0", `1` = "1", `2` = "2", 
+                               `3` = "3", `4` = "4", `5` = "5", `6` = "6", `7` = "7", `8` = "8", `9` = "9", 
+                               `10` = "10", `11` = "11", `12` = "12", `13` = "13", `14` = "14")
+DimPlot(data2.combined, label = TRUE)
+
+# 2.9 DoPlot (還未完成)
+Idents(data2.combined) <- factor(Idents(data2.combined), levels = c("pDC", "Eryth", "Mk", "DC", 
+                                                                    "CD14 Mono", "CD16 Mono", "B Activated", "B", "CD8 T", "NK", "T activated", "CD4 Naive T", "CD4 Memory T"))
+markers.to.plot <- c("CD3D", "CREM", "HSPH1", "SELL", "GIMAP5", "CACYBP", "GNLY", "NKG7", "CCL5", 
+                     "CD8A", "MS4A1", "CD79A", "MIR155HG", "NME1", "FCGR3A", "VMO1", "CCL2", "S100A9", "HLA-DQA1", 
+                     "GPR183", "PPBP", "GNG11", "HBA2", "HBB", "TSPAN13", "IL3RA", "IGJ")
+DotPlot(data2.combined, features = rev(markers.to.plot), cols = c("blue", "red"), dot.scale = 8, 
+        split.by = "stim") + RotatedAxis()
+
+# 2.10 Identify differential expressed genes across conditions
+library(ggplot2)
+library(cowplot)
+theme_set(theme_cowplot())
+cluster8.cells <- subset(data2.combined, idents =8)
+Idents(cluster8.cells) <- "sample"
+avg.cluster8.cells <- log1p(AverageExpression(cluster8.cells, verbose = FALSE)$RNA)
+avg.cluster8.cells$gene <- rownames(avg.cluster8.cells)
+
+write.table(data,"BM_avg.cluster8.groups.txt",sep="\t", row.names=T,col.names=T,quote=F)
+
+genes.to.label = c("Ccl5", "Ccl4", "Gzmm", "Gzmk", "AABR07017902.1", "Cd8a", "Ctsw", "Cd3g", "Cd3e")
+p1 <- ggplot(avg.cluster8.cells, aes(Y, O, CR)) + geom_point() + ggtitle("Cluster 8")
+p1 <- LabelPoints(plot = p1, points = genes.to.label, repel = TRUE)
+plot_grid(p1)
+
+# 2.11
+data2.combined$celltype.sample <- paste(Idents(data2.combined), data2.combined$sample, sep = "_")
+data2.combined$celltype <- Idents(data2.combined)
+Idents(data2.combined) <- "celltype.sample"
+data2.OvsY.response <- FindMarkers(data2.combined, ident.1 = "8_O", ident.2 = "8_Y", verbose = FALSE)
+head(data2.OvsY.response, n = 15)
+
+
+
+
+# How to Use seurat data linkin to singleR ?#
+library(BiocManager)
+library(SingleR)
+mBM_singleR.markers <- as.data.frame((BM.markers), stringsAsFactors=FALSE)
+
+table(data2.combined$sample)
+table(Idents(data2.combined))
+table(data2.combined$sample,Idents(data2.combined))
+
+head(Idents(data2.combined))
+table(Idents(data2.combined),data2.combined$sample)
+
+memory.limits()
+memory.limit(9e+13)
+
